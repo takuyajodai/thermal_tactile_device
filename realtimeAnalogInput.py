@@ -44,8 +44,8 @@ class RealtimePlot1D():
         xlabel="time",
         ylabel="temperature",
         title="RealtimePlot1D",
-        color="c",
-        marker=".",
+        color="r",
+        marker="-",
         alpha=1.0,
         ylim=None
     ):
@@ -77,6 +77,7 @@ class RealtimePlot1D():
         if self.ylim is not None:
             plt.ylim(self.ylim[0], self.ylim[1])
         plt.xlabel(self.xlabel)
+        plt.ylabel(self.ylabel)
         plt.title(self.title)
         plt.grid()
         plt.show()
@@ -94,7 +95,7 @@ class RealtimePlot1D():
         if   y_data < ylim[0]:
             plt.ylim(y_data*1.1, ylim[1])
         elif y_data > ylim[1]:
-            plt.ylim(ylim[0], y_data*1.1)
+            plt.ylim(ylim[0], y_data*1.4)
             
     def compute_fps(self):
         curtime = time.time()
@@ -174,7 +175,7 @@ def CallBackProc(dev_id, AiEvent, wparam, lparam, param):
         #----------------------------------------
         # Get the converted data
         #----------------------------------------
-        if AiSamplingCount.value >= 1000:
+        if AiSamplingCount.value >= 100:
             #----------------------------------------
             # Adjust to prevent the retrieved number of samplings from exceeding the size of array for storing data
             #----------------------------------------
@@ -400,7 +401,7 @@ def main():
     # Set the number of samplings of the event that data of the specified sampling times are stored : 1000
     #----------------------------------------
     #この値データ格納された時にコールバックイベント発生
-    lret.value = caio.AioSetAiEventSamplingTimes(aio_id, 1000)
+    lret.value = caio.AioSetAiEventSamplingTimes(aio_id, 100)
     if lret.value != 0:
         caio.AioGetErrorString(lret, err_str)
         print(f"AioSetAiEventSamplingTimes = {lret.value} : {err_str.value.decode('sjis')}")
@@ -441,8 +442,8 @@ def main():
     while True:
         if count >= 1:
             #x = np.array(range(0, count))
-            #y_data = data[count]
-            y_data = data[count-1]
+            #y_data = math.log(count)
+            y_data = np.array(data[count-1])
             realtime_plot1d.update(y_data)
 
             #print(count)
