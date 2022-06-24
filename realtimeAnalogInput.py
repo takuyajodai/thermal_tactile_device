@@ -20,6 +20,7 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+import csv
 
 AI_END_EVENT_HAPPENED   = 1
 AI_ERR_HAPPENED         = 2
@@ -401,6 +402,8 @@ def main():
     #----------------------------------------
     #コールバック呼び出し条件　デバイス動作終了、指定回数データ格納、サンプリングクロックエラー、オーバーフロー
     AiEvent = caio.AIE_END | caio.AIE_DATA_NUM | caio.AIE_OFERR | caio.AIE_SCERR | caio.AIE_ADERR
+    
+    
     #コールバック関数の呼びだし　これがハンドラ
     lret.value = caio.AioSetAiCallBackProc(aio_id, pai_callback, AiEvent, ctypes.byref(CallBackFlag))
     if lret.value != 0:
@@ -448,8 +451,8 @@ def main():
     realtime_plot1d = RealtimePlot1D(length)
     x_data = np.zeros(length)
 
+    #initial_time = time.perf_counter()
 
-    initial_time = time.perf_counter()
     
     #----------------------------------------
     # Get status of converting
@@ -460,6 +463,7 @@ def main():
             x_data = np.delete(x_data, 0)
             y_data = np.array(temp_data[count-1])
             realtime_plot1d.update(x_data, y_data)
+
 
             #print(count)
             #print(x_data)
@@ -484,7 +488,14 @@ def main():
         caio.AioExit(aio_id)
         sys.exit()
 
-    
+    #ファイル出力
+    f = open('./result.csv', 'w') 
+    header = ["time(sec)", "temp(℃)"]
+    writer = csv.writer(f)
+    writer.writerow(header)
+    result = zip(time_data, temp_data)
+    writer.writerows(result)
+    f.close()
     
 
     #----------------------------------------
@@ -501,6 +512,7 @@ def main():
         print(f"AioExit = {lret.value} : {err_str.value.decode('sjis')}")
         sys.exit()
     sys.exit()
+
 
 
 #----------------------------------------
