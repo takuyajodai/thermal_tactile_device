@@ -4,11 +4,14 @@
 # AiLong Sample
 #                                                CONTEC Co., Ltd.
 #参考　http://www.s12600.net/psy/python/21-3.html
+#https://org-technology.com/posts/matplotlib-realtime-plot.html
+
 #
 #================================================================
 #================================================================
 import ctypes
 import ctypes.wintypes
+from socket import inet_ntoa
 import sys
 import msvcrt
 import caio
@@ -25,36 +28,29 @@ AiTotalSamplingTimes = ctypes.c_long(0)             # The total number of sampli
 
 #データ収集用
 count = 0 #コールバック回数 
-data = []
-
-#x = np.array(range(0, count))
-#y = np.array(data)
-#plt.figure(figsize=(15, 6))
-#plt.xlabel("callback count")
-#plt.ylabel("temperature")
-#plt.plot(x, y, color = "red", marker = ".", label = "temp change")
-#plt.legend()
-#lines = plt.plot(x,y)
+temp_data = []
+initial_time = 0
+time_data = []
 
 class RealtimePlot1D():
     def __init__(
         self,
-        x_tick,
         length,
-        xlabel="time",
-        ylabel="temperature",
+        xlabel="time[sec]",
+        ylabel="temperature[℃]",
         title="RealtimePlot1D",
         color="r",
         marker="-",
         alpha=1.0,
-        ylim=None
+        ylim=None,
+        xlim=None
     ):
-        self.x_tick = x_tick
         self.length = length
         self.color = color
         self.marker = marker
         self.alpha = 1.0
         self.ylim = ylim
+        self.xlim = xlim
         self.xlabel = xlabel
         self.ylabel = ylabel
         self.title = title
@@ -64,7 +60,7 @@ class RealtimePlot1D():
         self.init_plot()
 
     def init_plot(self):
-        self.x_vec = np.arange(0, self.length) * self.x_tick - self.length * self.x_tick
+        self.x_vec = np.zeros(self.length) 
         self.y_vec = np.zeros(self.length)
         
         plt.ion()
@@ -76,14 +72,16 @@ class RealtimePlot1D():
                             alpha=self.alpha)  
         if self.ylim is not None:
             plt.ylim(self.ylim[0], self.ylim[1])
+        if self.xlim is not None:
+            plt.xlim(self.xlim[0], self.xlim[1])
         plt.xlabel(self.xlabel)
         plt.ylabel(self.ylabel)
         plt.title(self.title)
         plt.grid()
+
         plt.show()
         
         self.index = 0
-        self.x_data = -self.x_tick
         self.pretime = 0.0
         self.fps = 0.0
 
@@ -103,9 +101,8 @@ class RealtimePlot1D():
         self.fps = 1.0 / (time_diff + 1e-16)
         self.pretime = curtime 
 
-    def update(self, y_data):
+    def update(self, x_data, y_data):
         # プロットする配列の更新
-        self.x_data += self.x_tick
         self.y_vec[self.index] = y_data
         
         y_pos = self.index + 1 if self.index < self.length else 0
@@ -114,6 +111,10 @@ class RealtimePlot1D():
         if self.ylim is None:
             self.update_ylim(y_data)
         
+        self.line[0].set_xdata(x_data)
+        if self.xlim is None:
+            plt.xlim(min(x_data), max(x_data))
+
         plt.title(f"fps: {self.fps:0.1f} Hz")
         plt.pause(0.01)
         
@@ -137,9 +138,10 @@ def CallBackProc(dev_id, AiEvent, wparam, lparam, param):
     AiDataType = ctypes.c_float * DATA_MAX          # Create the array type (Converted data)
     AiData = AiDataType()                           # Converted data
 
-    global count
-    global data
-    global lines
+    global count                                    # callback回数カウント
+    global temp_data                                # 温度データ格納
+    global initial_time                             # 計測開始時間
+    global time_data                                # ラップ時間格納
 
     c_short_ptr = ctypes.cast(param, ctypes.POINTER(ctypes.c_short))
     #----------------------------------------
@@ -192,16 +194,25 @@ def CallBackProc(dev_id, AiEvent, wparam, lparam, param):
                 return
             AiTotalSamplingTimes.value += AiSamplingCount.value
             #print("電圧" + str(AiData[0]) + "\n")
+
             #B parameter equation
             Vol = AiData[0]
             current = 0.000487
             b = 3889
             registance = Vol / current
             temp = (b / (math.log(registance) + 3.8334)) - 273.15
-            print("\r{:.3f}".format(temp) + "℃", end = '', flush = True)
-            data.append(round(temp, 3))
-            count += 1
             
+            #経過時間
+            tmp_time = time.perf_counter()
+            current_time = tmp_time - initial_time
+
+            #ログ出力
+            print("\r{:.3f}".format(temp) + "℃　" + "{:.3f}".format(current_time) + "sec", end = '', flush = True)
+            
+            #配列格納
+            time_data.append(round(current_time, 3))
+            temp_data.append(round(temp, 3))
+            count += 1
 
             
         #----------------------------------------
@@ -427,27 +438,31 @@ def main():
     if lret.value != 0:
         caio.AioGetErrorString(lret, err_str)
         print(f"AioStartAi = {lret.value} : {err_str.value.decode('sjis')}")
+
         caio.AioExit(aio_id)
         sys.exit()
     print("Start converting, click any key to stop the converting\n")
     #print("Channel\t\tVoltage")
 
-    x_tick = 0.1
     length = 100
-    realtime_plot1d = RealtimePlot1D(x_tick, length)
+    realtime_plot1d = RealtimePlot1D(length)
+    x_data = np.zeros(length)
+
+
+    initial_time = time.perf_counter()
     
     #----------------------------------------
     # Get status of converting
     #----------------------------------------
     while True:
         if count >= 1:
-            #x = np.array(range(0, count))
-            #y_data = math.log(count)
-            y_data = np.array(data[count-1])
-            realtime_plot1d.update(y_data)
+            x_data = np.append(x_data, float(time_data[count-1]))
+            x_data = np.delete(x_data, 0)
+            y_data = np.array(temp_data[count-1])
+            realtime_plot1d.update(x_data, y_data)
 
             #print(count)
-            #print(data)
+            #print(x_data)
         #----------------------------------------
         # Check AI Error
         #----------------------------------------
