@@ -12,6 +12,7 @@
 import ctypes
 import ctypes.wintypes
 from socket import inet_ntoa
+from sqlite3 import SQLITE_CREATE_TEMP_INDEX
 import sys
 import msvcrt
 import caio
@@ -21,17 +22,30 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 import csv
+import random
 
 AI_END_EVENT_HAPPENED   = 1
 AI_ERR_HAPPENED         = 2
 CALLBACK_PROCESS_END    = 8
 AiTotalSamplingTimes = ctypes.c_long(0)             # The total number of samplings to be retrieved
 
+
+
 #データ収集用
 count = 0 #コールバック回数 
 temp_data = []
 initial_time = 0
 time_data = []
+
+DATA_MAX = 16000
+AoDataType = ctypes.c_float * DATA_MAX          # Create the array type (Converted data)
+AoData = AoDataType()
+# Vo2.5v初期化用
+AoData[0] = float(2.5)
+
+#PID制御用
+temp_err_sum = 0
+set_temp = 30
 
 class RealtimePlot1D():
     def __init__(
@@ -138,11 +152,19 @@ def CallBackProc(dev_id, AiEvent, wparam, lparam, param):
     DATA_MAX = 16000                                # The size of converted data
     AiDataType = ctypes.c_float * DATA_MAX          # Create the array type (Converted data)
     AiData = AiDataType()                           # Converted data
+    AoChannel = 0                                   # 使用する出力チャンネル
 
     global count                                    # callback回数カウント
-    global temp_data                                # 温度データ格納
     global initial_time                             # 計測開始時間
     global time_data                                # ラップ時間格納
+    global temp_data                                # 温度データ格納
+
+    global AoData
+
+    ki = -0.0003                                # PID制御パラメータ
+    kp = -0.5                                       # PID制御パラメータ
+    global temp_err_sum                             # PID制御パラメータ
+    global set_temp                                 # 目標温度
 
     c_short_ptr = ctypes.cast(param, ctypes.POINTER(ctypes.c_short))
     #----------------------------------------
@@ -151,6 +173,7 @@ def CallBackProc(dev_id, AiEvent, wparam, lparam, param):
     if AiEvent == caio.AIOM_AIE_DATA_NUM:
         #----------------------------------------
         # Get the number of channels
+
         #----------------------------------------
         if lret.value != 0:
             caio.AioGetErrorString(lret, err_str)
@@ -178,7 +201,7 @@ def CallBackProc(dev_id, AiEvent, wparam, lparam, param):
         #----------------------------------------
         # Get the converted data
         #----------------------------------------
-        if AiSamplingCount.value >= 100:
+        if AiSamplingCount.value >= 50:
             #----------------------------------------
             # Adjust to prevent the retrieved number of samplings from exceeding the size of array for storing data
             #----------------------------------------
@@ -201,18 +224,34 @@ def CallBackProc(dev_id, AiEvent, wparam, lparam, param):
             current = 0.000487
             b = 3889
             registance = Vol / current
-            temp = (b / (math.log(registance) + 3.8334)) - 273.15
+            current_temp = (b / (math.log(registance) + 3.8334)) - 273.15
             
             #経過時間
             tmp_time = time.perf_counter()
             current_time = tmp_time - initial_time
 
             #ログ出力
-            print("\r{:.3f}".format(temp) + "℃　" + "{:.3f}".format(current_time) + "sec", end = '', flush = True)
+            #print("\r{:.3f}".format(temp) + "℃　" + "{:.3f}".format(current_time) + "sec", end = '', flush = True)
+            
+            #アナログ簡易出力
+            #a = random.randint(0,5)
+            #PIDコントロール
+            temp_err = float(set_temp) - current_temp
+            temp_err_sum += temp_err
+            print(temp_err_sum)
+            Vo = (kp * temp_err) + (ki * temp_err_sum) + 2.5
+            AoData[count] = Vo
+            lret = caio.AioSingleAoEx(dev_id, AoChannel, AoData[count])
+            if lret != 0:
+                caio.AioGetErrorString(lret, err_str)
+                print(f"AioSingleAoEx = {lret.value}:{err_str.value.decode('sjis')}")
+
+            #ログ出力
+            print("\r{:.3f}".format(current_temp) + "℃  " + "{:.3f}".format(AoData[count]) + "V " + "{:.3f}".format(current_time) + "sec", end = '', flush = True)
             
             #配列格納
             time_data.append(round(current_time, 3))
-            temp_data.append(round(temp, 3))
+            temp_data.append(round(current_temp, 3))
             count += 1
 
             
@@ -278,10 +317,14 @@ def main():
     CallBackFlag = ctypes.c_short(0)                # Flag of waiting for the callback routine end
     AiSamplingTimes = ctypes.c_long()
 
+    #global initial_time
+    global set_temp
+
     #----------------------------------------
     # Confirm to input the device name
     #----------------------------------------
-    device_name = input("Please input device name : ")
+    #device_name = input("Please input device name : ")
+    device_name = "AIO000"
     #----------------------------------------
     # Initialize the device
     #----------------------------------------
@@ -305,6 +348,7 @@ def main():
     #----------------------------------------
     # Set analog input range
     #----------------------------------------
+    """
     while True:
         print("\nPlease select analog input range from the following list")
         print("+/-10V\t\t : 0\t0~10V\t\t : 50")
@@ -329,13 +373,36 @@ def main():
         AiRange = int(buf)
         break
     print("")
+    """
+    #----------------------------------------
+    # Set aimed temparture
+    #----------------------------------------
+    while True:
+        print("\nPlease input the aimed temparture: ", end='')
+        buf = input()
+        if False == isnum(buf, 10):
+            continue
+        set_temp = buf
+        break
+    print("")
     #----------------------------------------
     # Set the input range
     #----------------------------------------
+    AiRange = int(0)
     lret.value = caio.AioSetAiRangeAll(aio_id, AiRange)
     if lret.value != 0:
         caio.AioGetErrorString(lret, err_str)
         print(f"AioSetAiRangeAll = {lret.value} : {err_str.value.decode('sjis')}")
+        caio.AioExit(aio_id)
+        sys.exit()
+    #----------------------------------------
+    # Set the output range (0~5v固定)
+    #----------------------------------------
+    AoRange = int(0)
+    lret.value = caio.AioSetAoRangeAll(aio_id, AoRange)
+    if lret.value != 0:
+        caio.AioGetErrorString(lret, err_str)
+        print(f"AioSetAoRangeAll = {lret.value} : {err_str.value.decode('sjis')}")
         caio.AioExit(aio_id)
         sys.exit()
     #----------------------------------------
@@ -372,7 +439,7 @@ def main():
     #----------------------------------------
     # Set the sampling clock : 1000 usec
     #----------------------------------------
-    lret.value = caio.AioSetAiSamplingClock(aio_id, 1000)
+    lret.value = caio.AioSetAiSamplingClock(aio_id, 200)
     if lret.value != 0:
         caio.AioGetErrorString(lret, err_str)
         print(f"AioSetAiSamplingClock = {lret.value} : {err_str.value.decode('sjis')}")
@@ -415,7 +482,7 @@ def main():
     # Set the number of samplings of the event that data of the specified sampling times are stored : 1000
     #----------------------------------------
     #この値データ格納された時にコールバックイベント発生
-    lret.value = caio.AioSetAiEventSamplingTimes(aio_id, 100)
+    lret.value = caio.AioSetAiEventSamplingTimes(aio_id, 50)
     if lret.value != 0:
         caio.AioGetErrorString(lret, err_str)
         print(f"AioSetAiEventSamplingTimes = {lret.value} : {err_str.value.decode('sjis')}")
@@ -433,6 +500,16 @@ def main():
         print(f"AioResetAiMemory = {lret.value} : {err_str.value.decode('sjis')}")
         caio.AioExit(aio_id)
         sys.exit()
+    
+    lret.value = caio.AioResetAoMemory(aio_id)
+    if lret.value != 0:
+        caio.AioGetErrorString(lret, err_str)
+        print(f"AioResetAoMemory = {lret.value} : {err_str.value.decode('sjis')}")
+        caio.AioExit(aio_id)
+        sys.exit()
+
+    # offvoltageの初期値
+    #AoData[0] = float(2.5)
     #----------------------------------------
     # Start Converting
     #----------------------------------------
@@ -458,6 +535,13 @@ def main():
     # Get status of converting
     #----------------------------------------
     while True:
+        #----------------------------------------
+        # Check AI Error
+        #----------------------------------------
+        if CallBackFlag.value & AI_ERR_HAPPENED == AI_ERR_HAPPENED or \
+           msvcrt.kbhit() != 0:
+            break
+        
         if count >= 1:
             x_data = np.append(x_data, float(time_data[count-1]))
             x_data = np.delete(x_data, 0)
@@ -467,12 +551,7 @@ def main():
 
             #print(count)
             #print(x_data)
-        #----------------------------------------
-        # Check AI Error
-        #----------------------------------------
-        if CallBackFlag.value & AI_ERR_HAPPENED == AI_ERR_HAPPENED or \
-           msvcrt.kbhit() != 0:
-            break
+        
 
     
 
