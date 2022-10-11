@@ -3,7 +3,7 @@
 # API-AIO(WDM)
 # AiLong Sample
 #                                                CONTEC Co., Ltd.
-#参考　http://www.s12600.net/psy/python/21-3.html
+#参考 http://www.s12600.net/psy/python/21-3.html
 #https://org-technology.com/posts/matplotlib-realtime-plot.html
 
 #
@@ -11,6 +11,7 @@
 #================================================================
 import ctypes
 import ctypes.wintypes
+from email.mime import base
 from socket import inet_ntoa
 from sqlite3 import SQLITE_CREATE_TEMP_INDEX
 import sys
@@ -23,6 +24,10 @@ import matplotlib.pyplot as plt
 import time
 import csv
 import random
+
+import plot
+
+
 
 AI_END_EVENT_HAPPENED   = 1
 AI_ERR_HAPPENED         = 2
@@ -46,96 +51,24 @@ AoData[0] = float(2.5)
 #PID制御用
 temp_err_sum = 0
 set_temp = 30
+soa = 0
 
-class RealtimePlot1D():
-    def __init__(
-        self,
-        length,
-        xlabel="time[sec]",
-        ylabel="temperature[℃]",
-        title="RealtimePlot1D",
-        color="r",
-        marker="-",
-        alpha=1.0,
-        ylim=None,
-        xlim=None
-    ):
-        self.length = length
-        self.color = color
-        self.marker = marker
-        self.alpha = 1.0
-        self.ylim = ylim
-        self.xlim = xlim
-        self.xlabel = xlabel
-        self.ylabel = ylabel
-        self.title = title
-        self.line = None
+toj_flag = False
+WAITTIME = 1
+ANSTIME = 3
 
-        #プロット初期化
-        self.init_plot()
+state = 1
 
-    def init_plot(self):
-        self.x_vec = np.zeros(self.length) 
-        self.y_vec = np.zeros(self.length)
-        
-        plt.ion()
-        fig = plt.figure(figsize=(10,6))
-        ax = fig.add_subplot(111)
-        
-        self.line = ax.plot(self.x_vec, self.y_vec, 
-                            self.marker, color=self.color, 
-                            alpha=self.alpha)  
-        if self.ylim is not None:
-            plt.ylim(self.ylim[0], self.ylim[1])
-        if self.xlim is not None:
-            plt.xlim(self.xlim[0], self.xlim[1])
-        plt.xlabel(self.xlabel)
-        plt.ylabel(self.ylabel)
-        plt.title(self.title)
-        plt.grid()
 
-        plt.show()
-        
-        self.index = 0
-        self.pretime = 0.0
-        self.fps = 0.0
+length = 100
+realtime_plot1d = plot.RealtimePlot1D(length)
+x_data = np.zeros(length)
 
-    def update_index(self):
-        self.index = self.index + 1 if self.index < self.length-1 else 0
-        
-    def update_ylim(self, y_data):
-        ylim = self.line[0].axes.get_ylim()
-        if   y_data < ylim[0]:
-            plt.ylim(y_data*1.1, ylim[1])
-        elif y_data > ylim[1]:
-            plt.ylim(ylim[0], y_data*1.4)
-            
-    def compute_fps(self):
-        curtime = time.time()
-        time_diff = curtime - self.pretime
-        self.fps = 1.0 / (time_diff + 1e-16)
-        self.pretime = curtime 
+run_once = 0
+start = 0
 
-    def update(self, x_data, y_data):
-        # プロットする配列の更新
-        self.y_vec[self.index] = y_data
-        
-        y_pos = self.index + 1 if self.index < self.length else 0
-        tmp_y_vec = np.r_[self.y_vec[y_pos:self.length], self.y_vec[0:y_pos]]
-        self.line[0].set_ydata(tmp_y_vec)
-        if self.ylim is None:
-            self.update_ylim(y_data)
-        
-        self.line[0].set_xdata(x_data)
-        if self.xlim is None:
-            plt.xlim(min(x_data), max(x_data))
 
-        plt.title(f"fps: {self.fps:0.1f} Hz")
-        plt.pause(0.01)
-        
-        # 次のプロット更新のための処理
-        self.update_index()
-        self.compute_fps()
+
 
 #================================================================
 # Callback routine
@@ -161,10 +94,12 @@ def CallBackProc(dev_id, AiEvent, wparam, lparam, param):
 
     global AoData
 
-    ki = -0.0003                                # PID制御パラメータ
+    ki = -0.0003                                    # PID制御パラメータ
     kp = -0.5                                       # PID制御パラメータ
     global temp_err_sum                             # PID制御パラメータ
     global set_temp                                 # 目標温度
+    global toj_flag
+    global soa
 
     c_short_ptr = ctypes.cast(param, ctypes.POINTER(ctypes.c_short))
     #----------------------------------------
@@ -201,7 +136,7 @@ def CallBackProc(dev_id, AiEvent, wparam, lparam, param):
         #----------------------------------------
         # Get the converted data
         #----------------------------------------
-        if AiSamplingCount.value >= 50:
+        if AiSamplingCount.value >= 100:
             #----------------------------------------
             # Adjust to prevent the retrieved number of samplings from exceeding the size of array for storing data
             #----------------------------------------
@@ -235,16 +170,30 @@ def CallBackProc(dev_id, AiEvent, wparam, lparam, param):
             
             #アナログ簡易出力
             #a = random.randint(0,5)
-            #PIDコントロール
-            temp_err = float(set_temp) - current_temp
-            temp_err_sum += temp_err
-            print(temp_err_sum)
-            Vo = (kp * temp_err) + (ki * temp_err_sum) + 2.5
-            AoData[count] = Vo
-            lret = caio.AioSingleAoEx(dev_id, AoChannel, AoData[count])
-            if lret != 0:
-                caio.AioGetErrorString(lret, err_str)
-                print(f"AioSingleAoEx = {lret.value}:{err_str.value.decode('sjis')}")
+            #TOJ動作状態かつ、刺激提示状態であるとき
+            if toj_flag == True and state == 2:
+                #PIDコントロール
+                set_temp = 37
+                temp_err = float(set_temp) - current_temp
+                temp_err_sum += temp_err
+                #print(temp_err_sum)
+                Vo = (kp * temp_err) + (ki * temp_err_sum) + 2.5
+                AoData[count] = Vo
+                lret = caio.AioSingleAoEx(dev_id, AoChannel, AoData[count])
+                if lret != 0:
+                    caio.AioGetErrorString(lret, err_str)
+                    print(f"AioSingleAoEx = {lret.value}:{err_str.value.decode('sjis')}")
+            else:
+                Vo = 2.5
+                AoData[count] = Vo
+                lret = caio.AioSingleAoEx(dev_id, AoChannel, AoData[count])
+                if lret != 0:
+                    caio.AioGetErrorString(lret, err_str)
+                    print(f"AioSingleAoEx = {lret.value}:{err_str.value.decode('sjis')}")
+
+            #セーフティ
+            if current_temp <=15 or current_temp >= 40:
+                toj_flag = False
 
             #ログ出力
             print("\r{:.3f}".format(current_temp) + "℃  " + "{:.3f}".format(AoData[count]) + "V " + "{:.3f}".format(current_time) + "sec", end = '', flush = True)
@@ -300,6 +249,17 @@ def isnum(str, base):
         return False
     return True
 
+    
+def graph():
+    global x_data
+    global realtime_plot1d
+
+    if count >= 1:
+        x_data = np.append(x_data, float(time_data[count-1]))
+        x_data = np.delete(x_data, 0)
+        y_data = np.array(temp_data[count-1])
+        realtime_plot1d.update(x_data, y_data)
+
 
 #================================================================
 # Main function
@@ -317,8 +277,12 @@ def main():
     CallBackFlag = ctypes.c_short(0)                # Flag of waiting for the callback routine end
     AiSamplingTimes = ctypes.c_long()
 
-    #global initial_time
     global set_temp
+    global soa
+    global toj_flag
+    global state
+    global run_once
+    global start
 
     #----------------------------------------
     # Confirm to input the device name
@@ -378,11 +342,11 @@ def main():
     # Set aimed temparture
     #----------------------------------------
     while True:
-        print("\nPlease input the aimed temparture: ", end='')
+        print("\nPlease input the SOA: ", end='')
         buf = input()
-        if False == isnum(buf, 10):
-            continue
-        set_temp = buf
+        #if False == isnum(buf, 10):
+            #continue
+        soa = buf
         break
     print("")
     #----------------------------------------
@@ -482,7 +446,7 @@ def main():
     # Set the number of samplings of the event that data of the specified sampling times are stored : 1000
     #----------------------------------------
     #この値データ格納された時にコールバックイベント発生
-    lret.value = caio.AioSetAiEventSamplingTimes(aio_id, 50)
+    lret.value = caio.AioSetAiEventSamplingTimes(aio_id, 100)
     if lret.value != 0:
         caio.AioGetErrorString(lret, err_str)
         print(f"AioSetAiEventSamplingTimes = {lret.value} : {err_str.value.decode('sjis')}")
@@ -524,13 +488,7 @@ def main():
     print("Start converting, click any key to stop the converting\n")
     #print("Channel\t\tVoltage")
 
-    length = 100
-    realtime_plot1d = RealtimePlot1D(length)
-    x_data = np.zeros(length)
 
-    #initial_time = time.perf_counter()
-
-    
     #----------------------------------------
     # Get status of converting
     #----------------------------------------
@@ -538,24 +496,47 @@ def main():
         #----------------------------------------
         # Check AI Error
         #----------------------------------------
-        if CallBackFlag.value & AI_ERR_HAPPENED == AI_ERR_HAPPENED or \
-           msvcrt.kbhit() != 0:
+        if CallBackFlag.value & AI_ERR_HAPPENED == AI_ERR_HAPPENED:
             break
+
+        #プログラムの停止・TOJの開始　h:halt s:start
+        if msvcrt.kbhit() != 0:
+            if msvcrt.getch().decode() == 's':
+                toj_flag = True
+            else:
+                break
         
-        if count >= 1:
-            x_data = np.append(x_data, float(time_data[count-1]))
-            x_data = np.delete(x_data, 0)
-            y_data = np.array(temp_data[count-1])
-            realtime_plot1d.update(x_data, y_data)
+        if toj_flag == True:
+            
+            if run_once == 0:
+                start = time.perf_counter()
+                run_once = 1
+            if state == 1:
+                end = time.perf_counter()
+                if (end - start >= 3):
+                    print("waitいけたで")
+                    state = 2
+                    run_once = 0
+            elif state == 2:
+                end = time.perf_counter()
+                if (end - start >= float(soa)):
+                    print("doいけたで")
+                    lret.value = caio.AioOutputDoBit ( aio_id , 0 , 1 )
+                    time.sleep(0.01)
+                    lret.value = caio.AioOutputDoBit ( aio_id , 0 , 0 )
+                    state = 3
+                    run_once = 0
+            elif state == 3:
+                end = time.perf_counter()
+                if (end - start >= 5):
+                    print("ansいけたで")
+                    state = 1
+                    run_once = 0
 
+        graph()
 
-            #print(count)
-            #print(x_data)
+            
         
-
-    
-
-    
     #----------------------------------------
     # Stop Converting
     #----------------------------------------
@@ -595,6 +576,7 @@ def main():
 
 
 #----------------------------------------
+
 # Call main function
 #----------------------------------------
 if __name__ == "__main__":
