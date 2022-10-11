@@ -56,13 +56,16 @@ soa = 0
 toj_flag = False
 WAITTIME = 1
 ANSTIME = 3
+TEMPERARTURE = 37
 
-state = 1
 
+state = 1                                           # 1施行内のステート表現 1: wait, 2: do, 3: answer
 
+#グラフ描画準備
 length = 100
 realtime_plot1d = plot.RealtimePlot1D(length)
 x_data = np.zeros(length)
+
 
 run_once = 0
 start = 0
@@ -169,11 +172,11 @@ def CallBackProc(dev_id, AiEvent, wparam, lparam, param):
             #print("\r{:.3f}".format(temp) + "℃　" + "{:.3f}".format(current_time) + "sec", end = '', flush = True)
             
             #アナログ簡易出力
-            #a = random.randint(0,5)
+            
             #TOJ動作状態かつ、刺激提示状態であるとき
             if toj_flag == True and state == 2:
                 #PIDコントロール
-                set_temp = 37
+                set_temp = TEMPERARTURE
                 temp_err = float(set_temp) - current_temp
                 temp_err_sum += temp_err
                 #print(temp_err_sum)
@@ -183,6 +186,7 @@ def CallBackProc(dev_id, AiEvent, wparam, lparam, param):
                 if lret != 0:
                     caio.AioGetErrorString(lret, err_str)
                     print(f"AioSingleAoEx = {lret.value}:{err_str.value.decode('sjis')}")
+            #動作状態以外，もしくはwait, answer状態は2.5v固定
             else:
                 Vo = 2.5
                 AoData[count] = Vo
@@ -191,7 +195,7 @@ def CallBackProc(dev_id, AiEvent, wparam, lparam, param):
                     caio.AioGetErrorString(lret, err_str)
                     print(f"AioSingleAoEx = {lret.value}:{err_str.value.decode('sjis')}")
 
-            #セーフティ
+            #セーフティ, 15°C以下45°C以上は痛覚を伴う
             if current_temp <=15 or current_temp >= 40:
                 toj_flag = False
 
@@ -339,7 +343,7 @@ def main():
     print("")
     """
     #----------------------------------------
-    # Set aimed temparture
+    # Set SOA
     #----------------------------------------
     while True:
         print("\nPlease input the SOA: ", end='')
@@ -513,7 +517,7 @@ def main():
                 run_once = 1
             if state == 1:
                 end = time.perf_counter()
-                if (end - start >= 3):
+                if (end - start >= WAITTIME):
                     print("waitいけたで")
                     state = 2
                     run_once = 0
@@ -528,7 +532,7 @@ def main():
                     run_once = 0
             elif state == 3:
                 end = time.perf_counter()
-                if (end - start >= 5):
+                if (end - start >= ANSTIME):
                     print("ansいけたで")
                     state = 1
                     run_once = 0
