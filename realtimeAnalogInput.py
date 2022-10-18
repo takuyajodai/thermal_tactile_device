@@ -3,7 +3,7 @@
 # API-AIO(WDM)
 # AiLong Sample
 #                                                CONTEC Co., Ltd.
-#参考 http://www.s12600.net/psy/python/21-3.html
+#参考　http://www.s12600.net/psy/python/21-3.html
 #https://org-technology.com/posts/matplotlib-realtime-plot.html
 
 #
@@ -56,16 +56,13 @@ soa = 0
 toj_flag = False
 WAITTIME = 1
 ANSTIME = 3
-TEMPERARTURE = 37
+
+state = 1
 
 
-state = 1                                           # 1施行内のステート表現 1: wait, 2: do, 3: answer
-
-#グラフ描画準備
 length = 100
 realtime_plot1d = plot.RealtimePlot1D(length)
 x_data = np.zeros(length)
-
 
 run_once = 0
 start = 0
@@ -105,6 +102,16 @@ def CallBackProc(dev_id, AiEvent, wparam, lparam, param):
     global soa
 
     c_short_ptr = ctypes.cast(param, ctypes.POINTER(ctypes.c_short))
+
+    def cal_temp(volt):
+        #B parameter equation
+        current = 0.000487
+        b = 3889
+        registance = volt / current
+        current_temp = (b / (math.log(registance) + 3.8334)) - 273.15
+
+        return current_temp
+
     #----------------------------------------
     # Event that data of the specified sampling times are stored
     #----------------------------------------
@@ -158,11 +165,12 @@ def CallBackProc(dev_id, AiEvent, wparam, lparam, param):
             #print("電圧" + str(AiData[0]) + "\n")
 
             #B parameter equation
-            Vol = AiData[0]
-            current = 0.000487
-            b = 3889
-            registance = Vol / current
-            current_temp = (b / (math.log(registance) + 3.8334)) - 273.15
+            Vol1 = AiData[0]
+            Vol2 = AiData[1]
+            Vol3 = AiData[2]
+            current_temp = cal_temp(Vol1)
+            temp2 = cal_temp(Vol2)
+            temp3 = cal_temp(Vol3)
             
             #経過時間
             tmp_time = time.perf_counter()
@@ -172,11 +180,11 @@ def CallBackProc(dev_id, AiEvent, wparam, lparam, param):
             #print("\r{:.3f}".format(temp) + "℃　" + "{:.3f}".format(current_time) + "sec", end = '', flush = True)
             
             #アナログ簡易出力
-            
+            #a = random.randint(0,5)
             #TOJ動作状態かつ、刺激提示状態であるとき
-            if toj_flag == True and state == 2:
+            if toj_flag == True and (state == 2 or state == 3):
                 #PIDコントロール
-                set_temp = TEMPERARTURE
+                set_temp = 39
                 temp_err = float(set_temp) - current_temp
                 temp_err_sum += temp_err
                 #print(temp_err_sum)
@@ -186,7 +194,6 @@ def CallBackProc(dev_id, AiEvent, wparam, lparam, param):
                 if lret != 0:
                     caio.AioGetErrorString(lret, err_str)
                     print(f"AioSingleAoEx = {lret.value}:{err_str.value.decode('sjis')}")
-            #動作状態以外，もしくはwait, answer状態は2.5v固定
             else:
                 Vo = 2.5
                 AoData[count] = Vo
@@ -195,12 +202,12 @@ def CallBackProc(dev_id, AiEvent, wparam, lparam, param):
                     caio.AioGetErrorString(lret, err_str)
                     print(f"AioSingleAoEx = {lret.value}:{err_str.value.decode('sjis')}")
 
-            #セーフティ, 15°C以下45°C以上は痛覚を伴う
-            if current_temp <=15 or current_temp >= 40:
+            #セーフティ
+            if current_temp <=15 or current_temp >= 45:
                 toj_flag = False
 
             #ログ出力
-            print("\r{:.3f}".format(current_temp) + "℃  " + "{:.3f}".format(AoData[count]) + "V " + "{:.3f}".format(current_time) + "sec", end = '', flush = True)
+            print("\r{:.3f}".format(current_temp) + "℃  " + "{:.3f}".format(temp2) + "℃  " + "{:.3f}".format(temp3) + "℃  " + "{:.3f}".format(AoData[count]) + "V " + "{:.3f}".format(current_time) + "sec", end = '', flush = True)
             
             #配列格納
             time_data.append(round(current_time, 3))
@@ -343,7 +350,7 @@ def main():
     print("")
     """
     #----------------------------------------
-    # Set SOA
+    # Set aimed temparture
     #----------------------------------------
     while True:
         print("\nPlease input the SOA: ", end='')
@@ -377,9 +384,9 @@ def main():
     # Set the converting conditions
     #----------------------------------------
     #----------------------------------------
-    # Set the number of channels : 1 channel
+    # Set the number of channels : 3 channel
     #----------------------------------------
-    AiChannels = 1
+    AiChannels = 3
     lret.value = caio.AioSetAiChannels(aio_id, AiChannels)
     if lret.value != 0:
         caio.AioGetErrorString(lret, err_str)
@@ -517,7 +524,7 @@ def main():
                 run_once = 1
             if state == 1:
                 end = time.perf_counter()
-                if (end - start >= WAITTIME):
+                if (end - start >= 3):
                     print("waitいけたで")
                     state = 2
                     run_once = 0
@@ -531,8 +538,13 @@ def main():
                     state = 3
                     run_once = 0
             elif state == 3:
+                print("提示後いけたで")
+                if(temp_data[count-1] >= 39):
+                    state = 4
+                    run_once = 0
+            elif state == 4:
                 end = time.perf_counter()
-                if (end - start >= ANSTIME):
+                if (end - start >= 5):
                     print("ansいけたで")
                     state = 1
                     run_once = 0
