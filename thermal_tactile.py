@@ -26,6 +26,9 @@ import time
 import csv
 import random
 import plot
+from playsound import playsound
+import winsound
+from ctypes import windll
 
 AI_ERR_HAPPENED     = 2
 
@@ -54,6 +57,7 @@ def main():
     temp = []                                       # temp[0] : device temp, temp[1] : skin temp change, temp[2] : skin_temp
     run_once = 0
     run_once_solenoid = 0
+    run_once_sound = 0
     trial_count = 0                                 # 一試行ごとにインクリメント
     state_text = ""
 
@@ -61,12 +65,17 @@ def main():
     ki = -0.0003
     kp = -0.5
 
+
     # temp cal
     current = 0.000487
     b = 3889
 
     # PI control
     temp_err_sum = 0
+
+    # sound
+    trial_begin_sound = "Quiz-Question03-1.mp3"
+    trial_answer_sound = "button83.mp3"
 
     #----------------------------------------
     # Declare function
@@ -86,11 +95,17 @@ def main():
     """
     def pi_contorl(aimed_temp, current_temp, temp_err_sum):
         # PIコントロール
+
         temp_err = float(aimed_temp) - current_temp
         temp_err_sum += temp_err
+
         
         Vo = (kp * temp_err) + (ki * temp_err_sum) + 2.5
-        ret.value = caio.AioSingleAoEx(aio_id, AoChannel, Vo)
+        
+        start = time.perf_counter()
+        #ret.value = caio.AioSingleAoEx(aio_id, AoChannel, Vo)
+        end = time.perf_counter()
+        print('AioSingleAoEx time = {} Seconds'.format(end - start))
         if ret.value != 0:
             caio.AioGetErrorString(ret.value, err_str)
             print(f"AioSingleAoEx = {ret.value}:{err_str.value.decode('sjis')}")
@@ -307,8 +322,8 @@ def main():
         if msvcrt.kbhit() != 0:
             if msvcrt.getch().decode() == 's':
                 exp_flag = True
-            else:
-                break
+            #else:
+                #break
 
         if exp_flag == True:
             #データ収集　(共通)
@@ -324,16 +339,22 @@ def main():
                 start = AiTotalSamplingTimes.value
                 start_time = time.perf_counter()
                 run_once = 1
+                
 
             # キャリブレーション
             if state == 1:
                 state_text = "WAITフェーズ"
                 end = AiTotalSamplingTimes.value
                 end_time = time.perf_counter()
-                if (end - start >= 4000): 
-                    print(end_time - start_time)
+                if run_once_sound == 0:
+                    #playsound(trial_begin_sound)
+                    winsound.Beep(2000, 100)
+                    run_once_sound = 1
+                if (end - start >= 8000): 
+                    print('time = {} Seconds'.format(end_time - start_time))
                     state = 2
                     run_once = 0
+                    run_once_sound = 0
                     temp_err_sum = 0
                 Vo = pi_contorl(temp[2], temp[0], temp_err_sum)
             
@@ -350,19 +371,20 @@ def main():
                     ret.value = caio.AioOutputDoBit ( aio_id , 0 , 0 )
                     
                     state_text = "BEFORE DOフェーズ 触覚"
-                    print(end_time - start_time)
+                    print('time = {} Seconds'.format(end_time - start_time))
                     state = 3
                     run_once = 0
                     temp_err_sum = 0
                 # SOAが負の場合 熱先行
                 else:
                     state_text = "BEFORE DOフェーズ 熱"
-                    Vo = pi_contorl(temp[2] - 7, temp[0], temp_err_sum)
                     if (end - start >= abs(soa)):
-                        print(end_time - start_time)
+                        print('time = {} Seconds'.format(end_time - start_time))
                         state = 3
                         run_once = 0
                         temp_err_sum = 0
+                    Vo = pi_contorl(temp[2] - 7, temp[0], temp_err_sum)
+                    
 
             elif state == 3:
                 end = AiTotalSamplingTimes.value
@@ -374,41 +396,65 @@ def main():
                 if soa >= 0:
                     state_text = "LATER DOフェーズ 熱"
                     if (end - start >= abs(soa)):
-                        Vo = pi_contorl(temp[2] - 7, temp[0], temp_err_sum)
                         if (end - start >= 3000 - abs(soa)):
-                            print(end_time - start_time)
+                            print('time = {} Seconds'.format(end_time - start_time))
                             state = 4
                             run_once = 0
-                            temp_err_sum = 0           
+                            temp_err_sum = 0  
+                        Vo = pi_contorl(temp[2] - 7, temp[0], temp_err_sum)
+                                 
                 # SOAが負の場合 熱先行
                 else:
                     state_text = "LATER DOフェーズ 触覚"
                     if run_once_solenoid == 0:
+                        start = time.perf_counter()
+                        windll.winmm.timeBeginPeriod(1)
                         ret.value = caio.AioOutputDoBit ( aio_id , 0 , 1 )
-                        time.sleep(0.01)
+                        time.sleep(0.008)
+                        windll.winmm.timeBeginPeriod(1)
+                        end = time.perf_counter()
+                        print('Do_time = {} Seconds'.format(end - start))
                         ret.value = caio.AioOutputDoBit ( aio_id , 0 , 0 )
+                        
                         run_once_solenoid = 1
-                    Vo = pi_contorl(temp[2] - 7, temp[0], temp_err_sum)
                     if (end - start >= 3000 - abs(soa)):
-                        print(end_time - start_time)
+                        print('time = {} Seconds'.format(end_time - start_time))
                         state = 4
                         run_once = 0
                         run_once_solenoid = 0
                         temp_err_sum = 0
+                    Vo = pi_contorl(temp[2] - 7, temp[0], temp_err_sum)
                     
-                    
+      
 
             elif state == 4:
                 state_text = "ANSフェーズ"
                 end = AiTotalSamplingTimes.value
                 end_time = time.perf_counter()
-                if (end - start >= 3000):
-                    print(end_time - start_time)
-                    state = 1
-                    run_once = 0
-                    temp_err_sum = 0
-                    trial_count += 1
-
+                if run_once_sound == 0:
+                    #playsound(trial_answer_sound)
+                    winsound.Beep(1000, 100)
+                    run_once_sound = 1
+                if msvcrt.kbhit() != 0:
+                    if msvcrt.getch().decode() == 'n':
+                        ans = "same time"
+                        print('time = {} Seconds'.format(end_time - start_time))
+                        print(ans)
+                        state = 1
+                        run_once = 0
+                        run_once_sound = 0
+                        temp_err_sum = 0
+                        trial_count += 1
+                    elif msvcrt.getch().decode() == 'm':
+                        ans = "not same"
+                        print('time = {} Seconds'.format(end_time - start_time))
+                        print(ans)
+                        state = 1
+                        run_once = 0
+                        run_once_sound = 0
+                        temp_err_sum = 0
+                        trial_count += 1
+                
                 Vo = pi_contorl(temp[2], temp[0], temp_err_sum)
                 
 
@@ -419,10 +465,10 @@ def main():
             print("\rデバイス温 {:.3f}".format(temp[0]) + "℃  " +\
                 "皮膚温変化 {:.3f}".format(temp[1]) + "℃  " +\
                 "皮膚温 {:.3f}".format(temp[2]) + "℃  " +\
-                #"{:.0f}".format(AiSamplingCount.value) + "回  " +\
-                "サンプリング回数{:.0f}".format(AiTotalSamplingTimes.value) + "回  " +\
+                "{:.0f}".format(AiSamplingCount.value) + "回  " +\
+                "サンプリング回数 {:.0f}".format(AiTotalSamplingTimes.value) + "回  " +\
                 "{:.3f}".format(Vo) + "V  " +\
-                "トライアル{:.0f}".format(trial_count) + "回  " +\
+                "トライアル{:.0f}".format(trial_count+1) + "回  " +\
                 state_text, end = ' ', flush = True)
 
         else:
