@@ -25,10 +25,10 @@ import matplotlib.pyplot as plt
 import time
 import csv
 import random
-import plot
 from playsound import playsound
 import winsound
 from ctypes import windll
+from SOA_generator import generate_soa_list
 
 AI_ERR_HAPPENED     = 2
 
@@ -58,9 +58,14 @@ def main():
     trial_count = 0                                 # 一試行ごとにインクリメント
     state_text = ""
     total_time = 0
+    compare_temp = 33                               # Waitの最初に皮膚温の代表値として-7℃のために取得
+
 
     csv_data = [[]]
+    ans_data = [[]]
     index = 0
+
+    remaining_time = 3
 
 
     # temp cal
@@ -78,7 +83,7 @@ def main():
     #----------------------------------------
     # Declare function
     #----------------------------------------
-    def pi_contorl(aimed_temp, current_temp, temp_err_sum):
+    def pi_control(aimed_temp, current_temp, temp_err_sum):
         # PIコントロール
 
         temp_err = float(aimed_temp) - current_temp
@@ -179,10 +184,26 @@ def main():
     #----------------------------------------
     # SOAファイルよみこみ (csv)
     #----------------------------------------
+    """
     with open('./soa_input.csv') as f:
         reader = csv.reader(f)
         soa_list = [row for row in reader]
         print(soa_list)
+    """
+
+    soa_list = generate_soa_list()
+    practice_list = [-1000, 1000, -1000, 1000, -1000, 1000, -1000, 1000]
+    #soa_list = [[i, practice_list[i]] for i in range(len(practice_list))]
+    print(soa_list)
+
+    # 遅延を考慮　すべて-117msする
+    subtractor = 117
+    for i in range(len(soa_list)):
+        soa_list[i][1] -= subtractor
+    #print(soa_list)
+
+    print("Put the subject name here\n")
+    subject_name = input()
 
     print("Start converting, click any key to stop the converting\n")
 
@@ -195,13 +216,15 @@ def main():
     sampling_start_time = time.perf_counter()
     while trial_count < len(soa_list):
 
-        # プログラムの停止・TOJの開始　s:start q:quit
+        # プログラムの停止・TOJの開始　s:start q:quit b:break
         if msvcrt.kbhit() != 0:
             key = msvcrt.getch().decode()
             if key == 's':
                 exp_flag = True
             elif key == 'q':
                 break
+            elif key == 'b':
+                exp_flag = False
 
         #サンプリングをおこなう サンプリングレート15msec
         #サンプリングレートは最低13ms~かも
@@ -228,29 +251,30 @@ def main():
                 #データの収集
                 for i in range(AiChannels.value):
                     volt = AiData[i]
-                    registance = volt / current
-                    current_temp = (b / (math.log(registance) + 3.8334)) - 273.15
+                    resistance = volt / current
+                    current_temp = (b / (math.log(resistance) + 3.8334)) - 273.15
                     temp[i] = current_temp
     
                 if run_once == 0:
                     start_time = time.perf_counter()
                     run_once = 1
-                    run_once_sound = 1
     
                 # キャリブレーション
                 if state == 1:
                     state_text = "WAITフェーズ"
                     end_time = time.perf_counter()
                     if run_once_sound == 0:
+                        #print(int(soa_list[trial_count][1]))
                         winsound.Beep(2000, 100)
                         run_once_sound = 1
-                    if (end_time - start_time >= 6): 
+                    if (end_time - start_time >= 8): 
+                        compare_temp = temp[2]
                         print('time = {:.5f} Seconds'.format(end_time - start_time))
                         state = 2
                         run_once = 0
                         run_once_sound = 0
                         temp_err_sum = 0
-                    Vo = pi_contorl(temp[2], temp[0], temp_err_sum)
+                    Vo = pi_control(temp[2], temp[0], temp_err_sum)
     
                 # 提示　先行のもの    
                 elif state == 2:
@@ -259,16 +283,17 @@ def main():
                     soa = int(soa_list[trial_count][1])
                     # SOAが正の場合 触覚先行
                     if soa >= 0:
+                        state_text = "BEFORE DOフェーズ 触覚"
                         ret.value = caio.AioOutputDoBit ( aio_id , 0 , 1 )
                         time.sleep(0.008)
                         ret.value = caio.AioOutputDoBit ( aio_id , 0 , 0 )
                         
-                        state_text = "BEFORE DOフェーズ 触覚"
-                        #print('time = {:.5f} Seconds'.format(end_time - start_time))
+                        print('time = {:.5f} Seconds'.format(end_time - start_time))
                         state = 3
                         run_once = 0
                         temp_err_sum = 0
                     # SOAが負の場合 熱先行
+                
                     else:
                         state_text = "BEFORE DOフェーズ 熱"
                         if (end_time - start_time >= (abs(soa)*0.001)):
@@ -276,7 +301,7 @@ def main():
                             state = 3
                             run_once = 0
                             temp_err_sum = 0
-                        Vo = pi_contorl(temp[2] - 7, temp[0], temp_err_sum)
+                        Vo = pi_control(compare_temp - 7, temp[0], temp_err_sum)
     
                 elif state == 3:
                     end_time = time.perf_counter()
@@ -288,12 +313,12 @@ def main():
                         state_text = "LATER DOフェーズ 熱"
                         if (end_time - start_time >= abs(soa)*0.001):
                             #if (end_time - start_time >= 3 - (abs(soa)*0.001)):
-                            if (end_time - start_time >= 2):
+                            if (end_time - start_time >= remaining_time + abs(soa)*0.001):
                                 print('time = {:.5f} Seconds'.format(end_time - start_time))
                                 state = 4
                                 run_once = 0
                                 temp_err_sum = 0  
-                            Vo = pi_contorl(temp[2] - 7, temp[0], temp_err_sum)
+                            Vo = pi_control(compare_temp - 7, temp[0], temp_err_sum)
                                     
                     # SOAが負の場合 熱先行
                     else:
@@ -304,25 +329,26 @@ def main():
                             time.sleep(0.008)
                             ret.value = caio.AioOutputDoBit ( aio_id , 0 , 0 )
                             end = time.perf_counter()
-                            print('Do_time = {} Seconds'.format(end - start))
+                            #print('Do_time = {} Seconds'.format(end - start))
                             
                             run_once_solenoid = 1
-                        if (end_time - start_time >= 2 - (abs(soa)*0.001)):
+                        if (end_time - start_time >= remaining_time - (abs(soa)*0.001)):
                             print('time = {:.5f} Seconds'.format(end_time - start_time))
                             state = 4
                             run_once = 0
                             run_once_solenoid = 0
                             temp_err_sum = 0
-                        Vo = pi_contorl(temp[2] - 7, temp[0], temp_err_sum)
+                        Vo = pi_control(compare_temp - 7, temp[0], temp_err_sum)
     
                 elif state == 4:
                     state_text = "ANSフェーズ"
                     end_time = time.perf_counter()
                     if run_once_sound == 0:
                         winsound.Beep(1000, 100)
+                        winsound.Beep(1000, 100)
                         run_once_sound = 1
                     
-                    # 階層が深くキー入力が反応しにくいため0.1秒の間隔
+                    # 階層が深くキー入力が反応しにくいため0.05秒の間隔
                     time.sleep(0.05)
                     if msvcrt.kbhit() != 0:
                         key = msvcrt.getch().decode()
@@ -330,32 +356,35 @@ def main():
                             ans = "same time"
                             print('time = {:.5f} Seconds'.format(end_time - start_time))
                             print(ans)
-                            state = 1
+                            ans_data.append([index, trial_count+1, int(soa_list[trial_count][1]), 1])
                             run_once = 0
                             run_once_sound = 0
                             temp_err_sum = 0
                             trial_count += 1
+                            state = 1
                         elif key == '2':
                             ans = "not same"
                             print('time = {:.5f} Seconds'.format(end_time - start_time))
                             print(ans)
-                            state = 1
+                            ans_data.append([index, trial_count+1, int(soa_list[trial_count][1]), 2])
                             run_once = 0
                             run_once_sound = 0
                             temp_err_sum = 0
                             trial_count += 1
-                    
-                    Vo = pi_contorl(temp[2], temp[0], temp_err_sum)
+                            state = 1
+
+                    Vo = pi_control(temp[2], temp[0], temp_err_sum)
                 
                 # セーフティ
                 if temp[0] <= 15 or temp[0] >= 45:
                     exp_flag = False
+                    print("侵害刺激温度に達しました")
     
     
                 print("\rデバイス温 {:.3f}".format(temp[0]) + "℃  " +\
                         "皮膚温変化 {:.3f}".format(temp[1]) + "℃  " +\
                         "皮膚温 {:.3f}".format(temp[2]) + "℃  " +\
-                        "サンプリングレート{:.3f}".format(sampling_elapsed_time*1000) + "ミリ秒 "\
+                        "サンプリングレート{:.3f}".format(sampling_elapsed_time*1000) + "ミリ秒  "\
                         "トライアル{:.0f}".format(trial_count+1) + "回  " +\
                         "経過時間{:.3f}".format(total_time) + "秒  " +\
                         state_text, end = ' ', flush = True)
@@ -374,11 +403,19 @@ def main():
             
     
     # ファイル出力
-    f = open('./result.csv', 'w', newline='') 
+    f = open('./exp/' + subject_name + '_result.csv', 'w', newline='') 
     header = ["index", "デバイス温", "皮膚温変化", "皮膚温", "サンプリングレート", "トライアル", "経過時間", "ステート"]
     writer = csv.writer(f)
     writer.writerow(header)
     result = csv_data
+    writer.writerows(result)
+    f.close()
+
+    f = open('./exp/' + subject_name + '_answer.csv', 'w', newline='') 
+    header = ["index", "トライアル", "SOA", "回答"]
+    writer = csv.writer(f)
+    writer.writerow(header)
+    result = ans_data
     writer.writerows(result)
     f.close()
     
