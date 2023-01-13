@@ -192,7 +192,7 @@ def main():
     """
 
     soa_list = generate_soa_list()
-    practice_list = [-1000, 1000, -1000, 1000, -1000, 1000, -1000, 1000]
+    practice_list = [-1500, 1500, -1500, 1500, -1500, 1500, -1500, 1500]
     #soa_list = [[i, practice_list[i]] for i in range(len(practice_list))]
     print(soa_list)
 
@@ -267,7 +267,7 @@ def main():
                         #print(int(soa_list[trial_count][1]))
                         winsound.Beep(2000, 100)
                         run_once_sound = 1
-                    if (end_time - start_time >= 8): 
+                    if (end_time - start_time >= 9): 
                         compare_temp = temp[2]
                         print('time = {:.5f} Seconds'.format(end_time - start_time))
                         state = 2
@@ -356,7 +356,7 @@ def main():
                             ans = "same time"
                             print('time = {:.5f} Seconds'.format(end_time - start_time))
                             print(ans)
-                            ans_data.append([index, trial_count+1, int(soa_list[trial_count][1]), 1])
+                            ans_data.append([index, trial_count+1, int(soa_list[trial_count][1] + 117), 1])
                             run_once = 0
                             run_once_sound = 0
                             temp_err_sum = 0
@@ -366,7 +366,7 @@ def main():
                             ans = "not same"
                             print('time = {:.5f} Seconds'.format(end_time - start_time))
                             print(ans)
-                            ans_data.append([index, trial_count+1, int(soa_list[trial_count][1]), 2])
+                            ans_data.append([index, trial_count+1, int(soa_list[trial_count][1] + 117), 0])
                             run_once = 0
                             run_once_sound = 0
                             temp_err_sum = 0
