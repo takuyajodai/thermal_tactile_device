@@ -4,6 +4,8 @@
 Created on Tue Jan 24 20:56:27 2023
 
 @author: teraomasahiko
+
+updated by: jodaitakuya
 """
 
 from tkinter import filedialog
@@ -12,7 +14,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 import math
-
+plt.style.use("dsheep_white")
 
 
 filename=filedialog.askopenfilenames()
@@ -64,9 +66,10 @@ def fitfunc(x, A, mu, sigma, B):
 
 # フィッティングの初期パラメタ これ最適化しないといけない (A, mu, sigma, B)
 params_init = np.array([1.0, -250.0, 100.0, -5.0])
+param_bounds = ((0.0, -np.inf, -np.inf, -np.inf), (1.0, np.inf, np.inf, np.inf)) # bounds for parameter
 
 # 最適化実行 popt: 推定されたパラメタ pcov: 共分散→平方根で標準誤差
-popt, pcov = curve_fit(fitfunc, x, observations, p0 = params_init)
+popt, pcov = curve_fit(fitfunc, x, observations, p0 = params_init, bounds=param_bounds)
 popt[2] = np.abs(popt[2]) #分散は正でいい
 print("parameter: ", popt)
 
@@ -74,20 +77,46 @@ print("parameter: ", popt)
 Gfit = fitfunc(xgv, *popt)
 #plt.plot(xgv, Gfit, 'r-', label = 'fitting curve') #フィッティング・プロット
 
-# 同時性の窓の検出 Full Width Half Maximum
-fwhm = 2 * (2 * math.log(2)) ** 0.5 * popt[2]
-print(fwhm)
+# 同時性の窓の検出 Full Width Half Maximum 
+fwhm = 2 * (2 * math.log(2)) ** 0.5 * popt[2] #FWHM=2*(2*ln2)^0.5 *SD
+# 50%幅の導出
+point50 = list(filter(lambda x: 0.5 <= x, list(Gfit)))
+begin = xgv[list(Gfit).index(point50[0])]
+end = xgv[list(Gfit).index(point50[-1])]
+# PSSの導出
+max_index = np.argmax(Gfit)
+pss = xgv[max_index]
+
+#print(begin)
+#print(end)
+
+print("FWHM: ", fwhm)
+print("SD: ", abs(popt[2]))
+print("50% point: ", end-begin)
+print("PSS: ", pss)
+
+
 
 #plt.plot(xgv, Gfit, 'r-', label = 'fitting curve') #フィッティング・プロット
 
 # グラフ表示の設定
-plt.xlabel('x', fontsize=16) #x軸の名前とフォントサイズ
-plt.ylabel('y', fontsize=16) #y軸の名前とフォントサイズ
+plt.xlabel('SOAs', fontsize=14) #x軸の名前とフォントサイズ
+plt.ylabel('probability', fontsize=14) #y軸の名前とフォントサイズ
 #plt.legend(loc='proportion of simutanious') #ラベルを右上に記載
+
+plt.yticks([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
+
 plt.xlim([-1200,1000])
-plt.ylim([0,1])
+plt.ylim([0,1.05])
 
-plt.plot(x, num_tmparray, 'b.', label = 'data') 
-plt.plot(xgv, Gfit, 'r-', label = 'fitting curve') #フィッティング・プロット
+plt.vlines(pss, 0, Gfit[max_index], color='#DB5958', linestyles='dashed', label='PSS')
 
+plt.plot(x, num_tmparray, '.', color='#1D77B4', label = 'data', alpha=0.9) 
+plt.plot(xgv, Gfit, '-', color='#DB5958', label = 'fitting curve', alpha=1.0) #フィッティング・プロット
+plt.fill_between(xgv, Gfit, where=(xgv >= begin) & (xgv <= end), alpha=0.2)
+plt.legend()
+
+#plt.savefig("SJ.png", format="png", dpi=600)
 plt.show()
+
+

@@ -1,0 +1,77 @@
+#################################################
+# Author: dsheep
+# Date: 2022/5/10
+# Website: https://dsheepjapan.com/
+# Twitter: @dsheepjapan
+# Color reference: https://tailwindcolor.com/
+# stylesheet customizing: https://matplotlib.org/stable/tutorials/introductory/customizing.html
+#################################################
+
+font.family: sans-serif
+font.sans-serif: Arial, Liberation Sans, DejaVu Sans, Bitstream Vera Sans, sans-serif
+font.style: normal
+
+grid.color: white
+grid.linestyle: -
+grid.linewidth: 2
+grid.alpha: 1.0
+
+axes.grid: True
+axes.grid.axis: both
+axes.grid.which: major
+axes.titlesize: xx-large
+axes.titlepad: 30
+axes.labelsize: x-large
+axes.labelpad: 20
+axes.facecolor: white
+axes.edgecolor: white
+axes.titlecolor: 595959
+axes.labelcolor: 595959
+axes.spines.left: True
+axes.spines.bottom: True
+axes.spines.top: True
+axes.spines.right: True
+axes.linewidth: 3
+axes.axisbelow: True
+axes.prop_cycle: cycler('color', ['EF4444', '0EA5E9', '10B981', 'F59E0B', 'D946EF', '64748B', '84CC16', '6366F1', 'B91C1C', '0369A1', '047857', 'A16207', 'A21CAF', '334155', '4D7C0F', '4338CA', 'FCA5A5', '7DD3FC', '6EE7B7', 'FCD34D', 'F0ABFC', 'CBD5E1', 'BEF264', 'A5B4FC'])
+                   # ----- 300 / 500 / 700 : color -----
+                   # FCA5A5 / EF4444 / B91C1C : red
+                   # 7DD3FC / 0EA5E9 / 0369A1 : light blue
+                   # 6EE7B7 / 10B981 / 047857 : emerald
+                   # FCD34D / F59E0B / A16207 : amber
+                   # F0ABFC / D946EF / A21CAF : fuchsia
+                   # CBD5E1 / 64748B / 334155 : blue gray
+                   # BEF264 / 84CC16 / 4D7C0F : lime
+                   # A5B4FC / 6366F1 / 4338CA : indigo
+
+xtick.labelsize: large
+xtick.color: 595959
+#xtick.major.bottom: True
+xtick.labelcolor: 595959
+xtick.direction: out
+
+ytick.labelsize: large
+ytick.color: 595959
+ytick.labelcolor: 595959
+ytick.direction: out
+
+legend.fontsize: medium
+legend.frameon: False
+legend.facecolor: white
+legend.edgecolor: white
+legend.labelcolor: 595959
+
+lines.linewidth: 2
+lines.markeredgewidth: 2
+lines.markersize: 7
+lines.solid_capstyle: round
+
+figure.titlesize: xx-large
+figure.figsize: 12, 8
+figure.dpi: 100
+figure.facecolor: white
+figure.edgecolor: white
+
+scatter.edgecolors: white
+
+image.cmap: tab20b
