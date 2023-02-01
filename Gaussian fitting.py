@@ -81,18 +81,23 @@ Gfit = fitfunc(xgv, *popt)
 fwhm = 2 * (2 * math.log(2)) ** 0.5 * popt[2] #FWHM=2*(2*ln2)^0.5 *SD
 # 50%幅の導出
 point50 = list(filter(lambda x: 0.5 <= x, list(Gfit)))
-begin = xgv[list(Gfit).index(point50[0])]
-end = xgv[list(Gfit).index(point50[-1])]
+if point50:
+    begin = xgv[list(Gfit).index(point50[0])]
+    end = xgv[list(Gfit).index(point50[-1])]
+    print(begin)
+    print(end)
 # PSSの導出
 max_index = np.argmax(Gfit)
 pss = xgv[max_index]
+print("PSSの割合点", Gfit[max_index])
 
 #print(begin)
 #print(end)
 
 print("FWHM: ", fwhm)
 print("SD: ", abs(popt[2]))
-print("50% point: ", end-begin)
+if point50:
+    print("50% point: ", end-begin)
 print("PSS: ", pss)
 
 
@@ -113,10 +118,12 @@ plt.vlines(pss, 0, Gfit[max_index], color='#DB5958', linestyles='dashed', label=
 
 plt.plot(x, num_tmparray, '.', color='#1D77B4', label = 'data', alpha=0.9) 
 plt.plot(xgv, Gfit, '-', color='#DB5958', label = 'fitting curve', alpha=1.0) #フィッティング・プロット
-plt.fill_between(xgv, Gfit, where=(xgv >= begin) & (xgv <= end), alpha=0.2)
+if point50:
+    plt.fill_between(xgv, Gfit, where=(xgv >= begin) & (xgv <= end), alpha=0.2)
 plt.legend()
 
 #plt.savefig("SJ.png", format="png", dpi=600)
-plt.show()
-
+#plt.show()
+plt.savefig('plot.png')
+plt.close()
 
