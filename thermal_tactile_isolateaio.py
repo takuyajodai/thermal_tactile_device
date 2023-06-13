@@ -59,6 +59,7 @@ def main():
     state_text = ""
     total_time = 0
     compare_temp = 33                               # Waitの最初に皮膚温の代表値として-7℃のために取得
+    stimulus_temp = 7                               # -7 もしくは+7℃
 
 
     csv_data = [[]]
@@ -301,7 +302,7 @@ def main():
                             state = 3
                             run_once = 0
                             temp_err_sum = 0
-                        Vo = pi_control(compare_temp - 7, temp[0], temp_err_sum)
+                        Vo = pi_control(compare_temp + stimulus_temp, temp[0], temp_err_sum)
     
                 elif state == 3:
                     end_time = time.perf_counter()
@@ -318,7 +319,7 @@ def main():
                                 state = 4
                                 run_once = 0
                                 temp_err_sum = 0  
-                            Vo = pi_control(compare_temp - 7, temp[0], temp_err_sum)
+                            Vo = pi_control(compare_temp + stimulus_temp, temp[0], temp_err_sum)
                                     
                     # SOAが負の場合 熱先行
                     else:
@@ -338,7 +339,7 @@ def main():
                             run_once = 0
                             run_once_solenoid = 0
                             temp_err_sum = 0
-                        Vo = pi_control(compare_temp - 7, temp[0], temp_err_sum)
+                        Vo = pi_control(compare_temp + stimulus_temp, temp[0], temp_err_sum)
     
                 elif state == 4:
                     state_text = "ANSフェーズ"
@@ -382,7 +383,7 @@ def main():
     
     
                 print("\rデバイス温 {:.3f}".format(temp[0]) + "℃  " +\
-                        "皮膚温変化 {:.3f}".format(temp[1]) + "℃  " +\
+                        "デバイス・皮膚温 {:.3f}".format(temp[1]) + "℃  " +\
                         "皮膚温 {:.3f}".format(temp[2]) + "℃  " +\
                         "サンプリングレート{:.3f}".format(sampling_elapsed_time*1000) + "ミリ秒  "\
                         "トライアル{:.0f}".format(trial_count+1) + "回  " +\
@@ -404,7 +405,7 @@ def main():
     
     # ファイル出力
     f = open('./exp/' + subject_name + '_result.csv', 'w', newline='') 
-    header = ["index", "デバイス温", "皮膚温変化", "皮膚温", "サンプリングレート", "トライアル", "経過時間", "ステート"]
+    header = ["index", "device_temp", "device&skin_temp", "skin_temp", "sampling_rate", "number_of_trial", "time", "state"]
     writer = csv.writer(f)
     writer.writerow(header)
     result = csv_data
@@ -412,7 +413,7 @@ def main():
     f.close()
 
     f = open('./exp/' + subject_name + '_answer.csv', 'w', newline='') 
-    header = ["index", "トライアル", "SOA", "回答"]
+    header = ["index", "number_of_trial", "SOA", "answer"]
     writer = csv.writer(f)
     writer.writerow(header)
     result = ans_data
