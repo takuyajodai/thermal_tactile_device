@@ -16,6 +16,8 @@ import codecs
 
 plt.style.use("dsheep_white")
 
+#plt.rcParams["font.family"] = "Times New Roman"   # 使用するフォント
+
 
 filename='./data/window.csv'
 
@@ -42,7 +44,7 @@ print (sem_FWHM)
 print (sem_SD)
 print (sem_S_window)
 
-x = np.array(['FWHM', 'SD', '50% window'])
+x = np.array(['FWHM', 'SD', '50%\nwindow'])
 y = np.array([mean_FWHM, mean_SD, mean_S_window])
 
 
@@ -54,10 +56,12 @@ err = [sem_FWHM, sem_SD, sem_S_window]
 plt.barh(x_position, y, height= 0.5, tick_label=x, xerr=err, capsize=10, color='#45B28B', alpha=0.9)
 
 # グラフ表示の設定
-plt.xlabel('window size(ms)', fontsize=14) #x軸の名前とフォントサイズ
+plt.xlabel('Window size(ms)', fontsize=28) #x軸の名前とフォントサイズ
 plt.legend()
-plt.ylabel('types of window', fontsize=14) #y軸の名前とフォントサイズ
-plt.legend()
+plt.ylabel('Types of window', fontsize=28) #y軸の名前とフォントサイズ
+plt.legend(fontsize=18)
+plt.tick_params(labelsize=26)
+
 
 #plt.savefig("SJ.png", format="png", dpi=600)
 plt.show()

@@ -14,6 +14,8 @@ from scipy.optimize import curve_fit
 import math
 plt.style.use("dsheep_white")
 
+#plt.rcParams["font.family"] = "Times New Roman" 
+
 #csv 11こ
 files = ['./data/1.csv', './data/3.csv','./data/4.csv','./data/5.csv','./data/6.csv','./data/7.csv','./data/8.csv','./data/9.csv','./data/10.csv','./data/11.csv','./data/12.csv','./data/all-no2.csv']
 
@@ -65,7 +67,7 @@ for i,df in enumerate(dfs):
     # 最適化実行 popt: 推定されたパラメタ pcov: 共分散→平方根で標準誤差
     popt, pcov = curve_fit(fitfunc, x, observations, p0 = params_init, bounds=param_bounds)
     popt[2] = np.abs(popt[2]) #分散は正でいい
-    #print("parameter: ", popt)
+    print("parameter: ", popt)
 
     # 最適化されたパラメタを使ってフィット関数を作成
     Gfit = fitfunc(xgv, *popt)
@@ -97,8 +99,8 @@ for i,df in enumerate(dfs):
 
     #print("FWHM: ", fwhm)
     #print("SD: ", abs(popt[2]))
-    #if point50:
-    #   print("50% point: ", end-begin)
+    if point50:
+       print("50% point: ", end-begin)
     print("PSS: ", pss)
     
 
@@ -106,8 +108,8 @@ for i,df in enumerate(dfs):
 #plt.plot(xgv, Gfit, 'r-', label = 'fitting curve') #フィッティング・プロット
 
 # グラフ表示の設定
-plt.xlabel('SOA(ms)', fontsize=14) #x軸の名前とフォントサイズ
-plt.ylabel('Probability of simultaneity response', fontsize=14) #y軸の名前とフォントサイズ
+plt.xlabel('SOA(ms)', fontsize=22) #x軸の名前とフォントサイズ
+plt.ylabel('Probability of simultaneity response', fontsize=22) #y軸の名前とフォントサイズ
 #plt.legend(loc='proportion of simutanious') #ラベルを右上に記載
 
 plt.yticks([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
@@ -121,7 +123,8 @@ plt.vlines(pss, 0, Gfit[max_index], color='#DB5958', linestyles='dashed', label=
 #plt.plot(xgv, Gfit, '-', color='#DB5958', label = 'fitting curve', alpha=1.0) #フィッティング・プロット
 
 plt.fill_between(xgv, Gfit, where=(xgv >= begin) & (xgv <= end), alpha=0.2)
-plt.legend()
+plt.legend(fontsize=18)
+plt.tick_params(labelsize=20)
 
 #plt.savefig("SJ.png", format="png", dpi=600)
 plt.show()
