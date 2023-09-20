@@ -37,7 +37,8 @@ for t in range(f_num):
 
 ff=pd.DataFrame(tmpData)    #csvの行列そのもの (ヘッダー以外)
 
-analyset = np.array([-1000,-700,-500,-350,-250,-200,-150,-50,100,300,600])
+#analyset = np.array([-1000,-700,-500,-350,-250,-200,-150,-50,100,300,600])
+analyset = np.array([-2000,-1500,-1100,-800,-600,-500,-400,-200,100,500,1000])
 
 num_tmparray=np.empty((1,0),float);
 hh=analyset.size
@@ -58,14 +59,14 @@ observations = num_tmparray
 #############################
 #ここからfitting
 #############################
-N = 2600 #データ点数 1msにつき1点くらいでいいのでは？ 適当
+N = 4000 #データ点数 1msにつき1点くらいでいいのでは？ 適当
 xgv = np.arange(0.0, N) - N/2 #軸の設定
 # フィッティングする関数形の定義
 def fitfunc(x, A, mu, sigma, B):
     return A*np.exp(-(x-mu)**2/(2.0*sigma**2)) + B
 
 # フィッティングの初期パラメタ これ最適化しないといけない (A, mu, sigma, B)
-params_init = np.array([1.0, -250.0, 100.0, -5.0])
+params_init = np.array([1.0, -500.0, 100.0, -5.0])
 param_bounds = ((0.0, -np.inf, -np.inf, -np.inf), (1.0, np.inf, np.inf, np.inf)) # bounds for parameter
 
 # 最適化実行 popt: 推定されたパラメタ pcov: 共分散→平方根で標準誤差
@@ -105,13 +106,13 @@ print("PSS: ", pss)
 #plt.plot(xgv, Gfit, 'r-', label = 'fitting curve') #フィッティング・プロット
 
 # グラフ表示の設定
-plt.xlabel('SOAs', fontsize=14) #x軸の名前とフォントサイズ
-plt.ylabel('probability', fontsize=14) #y軸の名前とフォントサイズ
+plt.xlabel('SOA(ms)', fontsize=22) #x軸の名前とフォントサイズ
+plt.ylabel('Probability of simultaneity response', fontsize=22) #y軸の名前とフォントサイズ
 #plt.legend(loc='proportion of simutanious') #ラベルを右上に記載
 
 plt.yticks([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
 
-plt.xlim([-1200,1000])
+plt.xlim([-2000,1000])
 plt.ylim([0,1.05])
 
 plt.vlines(pss, 0, Gfit[max_index], color='#DB5958', linestyles='dashed', label='PSS')
@@ -120,10 +121,11 @@ plt.plot(x, num_tmparray, '.', color='#1D77B4', label = 'data', alpha=0.9)
 plt.plot(xgv, Gfit, '-', color='#DB5958', label = 'fitting curve', alpha=1.0) #フィッティング・プロット
 if point50:
     plt.fill_between(xgv, Gfit, where=(xgv >= begin) & (xgv <= end), alpha=0.2)
-plt.legend()
+plt.legend(fontsize=18)
+plt.tick_params(labelsize=20)
 
 #plt.savefig("SJ.png", format="png", dpi=600)
-#plt.show()
-plt.savefig('plot.png')
-plt.close()
+plt.show()
+plt.savefig('plot_warm.png')
+#plt.close()
 

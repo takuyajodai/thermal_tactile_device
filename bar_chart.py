@@ -19,7 +19,7 @@ plt.style.use("dsheep_white")
 #plt.rcParams["font.family"] = "Times New Roman"   # 使用するフォント
 
 
-filename='./data/window.csv'
+filename='./warm_data/window.csv'
 
 df = pd.read_csv(filename, 
   header = 0,
