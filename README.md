@@ -1,164 +1,173 @@
 # Thermal-Tactile Simultaneity Judgment Analysis
 
-このリポジトリは、温度刺激と触覚刺激の同時性判断（TOJ: Temporal Order Judgment）実験のデータ収集と解析を行うためのツールセットです。
+This repository contains a toolset for data collection and analysis of temporal order judgment (TOJ) experiments involving thermal and tactile stimuli.
 
-## プロジェクト構成
+## Project Structure
 
 ```
 thermal_tactile_device/
-├── experiments/          # 実験実行用スクリプト（DAQ制御、刺激提示）
+├── experiments/          # Experimental scripts (DAQ control, stimulus presentation)
 │   ├── thermal_tactile_isolateio_cold_spatial.py
 │   ├── thermal_tactile_isolateio_cold.py
 │   ├── thermal_tactile_isolateaio_warm.py
 │   ├── thermal_tactile_isolateaio.py
-│   ├── caio.py          # CONTEC AIOライブラリ（DAQ制御）
-│   └── SOA_generator.py # SOA（Stimulus Onset Asynchrony）リスト生成
-├── analysis/            # データ解析スクリプト
-│   ├── aggregate_answers.py              # 回答CSVファイルの集約
+│   ├── caio.py          # CONTEC AIO library (DAQ control)
+│   └── SOA_generator.py # SOA (Stimulus Onset Asynchrony) list generator
+├── analysis/            # Data analysis scripts
+│   ├── aggregate_answers.py              # Aggregate answer CSV files
 │   ├── Gaussian_fitting_integrate_cold.py
 │   ├── Gaussian_fitting_integrate_spatial_cold.py
 │   └── Gaussian_fitting_integrate_warm.py
-├── plotting/           # 可視化スクリプト
+├── plotting/           # Visualization scripts
 │   ├── barplot_all.py
 │   ├── barplot_spatial_cold.py
 │   └── barplot_window.py
-├── utils/              # 共通ユーティリティ
-│   ├── dsheep_white.mplstyle  # matplotlibスタイル
-│   └── plot.py                # リアルタイムプロット用クラス
-└── data/               # データディレクトリ
-    └── sample/          # サンプルデータ（リポジトリに含める）
+├── utils/              # Common utilities
+│   ├── dsheep_white.mplstyle  # matplotlib style
+│   └── plot.py                # Real-time plotting class
+└── data/               # Data directory
+    └── sample/          # Sample data (included in repository)
 ```
 
-## セットアップ
+## Setup
 
-### 必要な環境
+### Requirements
 
-- Python 3.8以上
-- Windows（実験スクリプトはWindows専用、CONTEC AIOライブラリが必要）
+- Python 3.8 or higher
+- Windows (experimental scripts are Windows-specific and require CONTEC AIO library)
 
-### インストール
+### Installation
 
-1. リポジトリをクローン:
+1. Clone the repository:
 ```bash
 git clone https://github.com/takuyajodai/thermal_tactile_device.git
 cd thermal_tactile_device
 ```
 
-2. 依存パッケージをインストール:
+2. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-3. tkinterの確認:
-   - macOS/Linux: `sudo apt-get install python3-tk` (必要に応じて)
-   - Windows: Pythonに含まれています
+3. Verify tkinter:
+   - macOS/Linux: `sudo apt-get install python3-tk` (if needed)
+   - Windows: Included with Python
 
-4. CONTEC AIOライブラリ（実験実行時のみ必要）:
-   - CONTEC社のAPI-AIO(WDM)ドライバをインストール
-   - `caio.py`を適切な場所に配置
+4. CONTEC AIO library (required only for running experiments):
+   - Install CONTEC API-AIO(WDM) driver
+   - Place `caio.py` in the appropriate location
 
-## 使い方
+## Usage
 
-### データ解析
+### Data Analysis
 
-#### 1. 回答データの集約
+#### 1. Aggregate Answer Data
 
-複数の被験者データを集約します:
+Aggregate data from multiple participants:
 
 ```bash
-# ファイル選択ダイアログが開きます
+# A file selection dialog will open
 python analysis/aggregate_answers.py
 
-# または、コマンドライン引数で指定
+# Or specify via command line arguments
 python analysis/aggregate_answers.py path/to/*_answer.csv -o output.csv
 ```
 
-入力ファイル名の形式: `[index]_[subject]_[run]_answer.csv`
+Input file name format: `[index]_[subject]_[run]_answer.csv`
 
-#### 2. ガウシアンフィッティング
+#### 2. Gaussian Fitting
 
-各条件（cold, warm, spatial_cold）に対して、ガウシアン関数でフィッティングを行い、PSS（Point of Subjective Simultaneity）やWindow sizeを計算します:
+Perform Gaussian function fitting for each condition (cold, warm, spatial_cold) to calculate PSS (Point of Subjective Simultaneity) and Window size:
 
 ```bash
-# Cold条件
+# Cold condition
 python analysis/Gaussian_fitting_integrate_cold.py
 
-# Warm条件
+# Warm condition
 python analysis/Gaussian_fitting_integrate_warm.py
 
-# Spatial Cold条件
+# Spatial Cold condition
 python analysis/Gaussian_fitting_integrate_spatial_cold.py
 ```
 
-実行すると:
-1. ファイル選択ダイアログが開きます（複数選択可）
-2. 各被験者データと集約データに対してフィッティングを実行
-3. グラフが表示されます
-4. 結果をCSVファイルとして保存するダイアログが開きます
+When executed:
+1. A file selection dialog will open (multiple selection allowed)
+2. Fitting is performed for each participant's data and aggregated data
+3. Graphs are displayed
+4. A dialog opens to save results as a CSV file
 
-**出力される指標**:
-- PSS: 主観的同時点（ms）
-- Window_size: 50%閾値の幅（ms）
-- Prob: ピークの確率値
-- Reduced_chi_squared: 正規化されたカイ二乗値
-- AIC/BIC: モデル選択指標（spatial_coldのみ）
-- Reduced_deviance: 正規化されたデビアンス（spatial_coldのみ）
+**Output metrics**:
+- PSS: Point of Subjective Simultaneity (ms)
+- Window_size: Width at 50% threshold (ms)
+- Prob: Peak probability value
+- Reduced_chi_squared: Normalized chi-squared value
+- AIC/BIC: Model selection metrics (spatial_cold only)
+- Reduced_deviance: Normalized deviance (spatial_cold only)
 
-#### 3. 可視化
+#### 3. Visualization
 
 ```bash
-# 全条件の比較
+# Compare all conditions
 python plotting/barplot_all.py
 
-# Spatial Cold条件
+# Spatial Cold condition
 python plotting/barplot_spatial_cold.py
 
-# Window sizeの比較
+# Compare Window sizes
 python plotting/barplot_window.py
 ```
 
-### 実験実行
+### Running Experiments
 
-実験スクリプトはWindows環境でCONTEC AIOデバイスが必要です。
+Experimental scripts require Windows environment and CONTEC AIO device.
 
-1. `SOA_generator.py`でSOAリストを設定
-2. 対応する実験スクリプトを実行:
-   - `thermal_tactile_isolateio_cold_spatial.py`: 空間的寒冷刺激
-   - `thermal_tactile_isolateio_cold.py`: 寒冷刺激
-   - `thermal_tactile_isolateaio_warm.py`: 温熱刺激
-   - `thermal_tactile_isolateaio.py`: 汎用
+1. Set SOA list using `SOA_generator.py`
+2. Run the corresponding experimental script:
+   - `thermal_tactile_isolateio_cold_spatial.py`: Spatial cold thermal stimulus
+   - `thermal_tactile_isolateio_cold.py`: Cold thermal stimulus
+   - `thermal_tactile_isolateaio_warm.py`: Warm thermal stimulus
+   - `thermal_tactile_isolateaio.py`: General purpose
 
-## データ形式
+## Data Format
 
-### 入力CSV形式
+### Input CSV Format
 
-解析スクリプトは以下の形式のCSVを想定しています:
+Analysis scripts expect CSV files in the following format:
 
-- ヘッダー行が必要
-- SOA列: 刺激間隔（ms）
-- 回答列（列5）: 0（非同時性）または1（同時性）
+- Header row required
+- SOA column: Stimulus interval (ms)
+- Answer column (column 5): 0 (non-simultaneous) or 1 (simultaneous)
 
-### 出力CSV形式
+### Output CSV Format
 
-解析結果は以下の列を含みます:
+Analysis results include the following columns:
 
-- Subject: 被験者ID
-- PSS: 主観的同時点（ms）
-- Window_size: 50%閾値の幅（ms）
-- Prob: ピークの確率値
-- Reduced_chi_squared: 正規化されたカイ二乗値
-- （spatial_coldのみ）AIC, BIC, Reduced_deviance
+- Subject: Participant ID
+- PSS: Point of Subjective Simultaneity (ms)
+- Window_size: Width at 50% threshold (ms)
+- Prob: Peak probability value
+- Reduced_chi_squared: Normalized chi-squared value
+- (spatial_cold only) AIC, BIC, Reduced_deviance
 
-## 注意事項
+## Notes
 
-- 生成された画像（`*.png`）や集約CSV（`aggregated.csv`）は`.gitignore`で除外されています
-- 本番データ（`cold_data/`, `warm_data/`）は既にリポジトリから削除されており、`.gitignore`で除外されています
-- サンプルデータは`data/sample/`に配置されています
+- Generated images (`*.png`) and aggregated CSV files (`aggregated.csv`) are excluded by `.gitignore`
+- Production data (`cold_data/`, `warm_data/`) have been removed from the repository and are excluded by `.gitignore`
+- Sample data is located in `data/sample/`
 
-## ライセンス
+## Related Publication
 
-[ライセンス情報を記載]
+This repository contains data analysis tools related to the following publication:
 
-## 著者
+Jodai, T., Jones, L. A., Terao, M., & Ho, H.-N. (2024). Perceiving Synchrony: Determining Thermal-tactile Simultaneity Windows. ResearchGate. https://www.researchgate.net/publication/383702978_Perceiving_Synchrony_Determining_Thermal-tactile_Simultaneity_Windows
 
-[著者情報を記載]
+## Authors
+
+**First Author**: Takuya Jodai
+
+**Co-authors**: 
+- Lynette A. Jones
+- Masahiko Terao
+- Hsin-Ni Ho
+
+The code in this repository was used in the research described in the above publication.
