@@ -3,7 +3,7 @@
 """
 Created on Tue Jan 30 2023
 
-author: jodaitakuya
+Thermal-tactile simultaneity judgment analysis using Gaussian fitting.
 """
 
 from tkinter import filedialog

@@ -3,7 +3,7 @@
 """
 Created on Tue Jan 30 2023
 
-author: jodaitakuya
+Thermal-tactile simultaneity judgment analysis using Gaussian fitting.
 
 概要:
 このスクリプトは、複数のCSVファイルから空間的寒冷刺激（spatial cold）のデータを読み込み、

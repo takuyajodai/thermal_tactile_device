@@ -1,11 +1,11 @@
-# HoLab - Thermal-Tactile Simultaneity Judgment Analysis
+# Thermal-Tactile Simultaneity Judgment Analysis
 
 このリポジトリは、温度刺激と触覚刺激の同時性判断（TOJ: Temporal Order Judgment）実験のデータ収集と解析を行うためのツールセットです。
 
 ## プロジェクト構成
 
 ```
-HoLab/
+thermal_tactile_device/
 ├── experiments/          # 実験実行用スクリプト（DAQ制御、刺激提示）
 │   ├── thermal_tactile_isolateio_cold_spatial.py
 │   ├── thermal_tactile_isolateio_cold.py
@@ -40,8 +40,8 @@ HoLab/
 
 1. リポジトリをクローン:
 ```bash
-git clone <repository-url>
-cd HoLab
+git clone https://github.com/takuyajodai/thermal_tactile_device.git
+cd thermal_tactile_device
 ```
 
 2. 依存パッケージをインストール:
@@ -152,8 +152,8 @@ python plotting/barplot_window.py
 ## 注意事項
 
 - 生成された画像（`*.png`）や集約CSV（`aggregated.csv`）は`.gitignore`で除外されています
-- 本番データ（`cold_data/`, `warm_data/`）はリポジトリに含まれていません
-- サンプルデータは`data/sample/`に配置してください
+- 本番データ（`cold_data/`, `warm_data/`）は既にリポジトリから削除されており、`.gitignore`で除外されています
+- サンプルデータは`data/sample/`に配置されています
 
 ## ライセンス
 
@@ -161,4 +161,4 @@ python plotting/barplot_window.py
 
 ## 著者
 
-jodaitakuya
+[著者情報を記載]
