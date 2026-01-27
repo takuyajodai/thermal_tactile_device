@@ -1,0 +1,15 @@
+# Core dependencies
+numpy>=1.20.0
+pandas>=1.3.0
+matplotlib>=3.3.0
+scipy>=1.7.0
+seaborn>=0.11.0
+
+# Note: tkinter is included with Python on most systems
+# On Linux, you may need to install: sudo apt-get install python3-tk
+# On macOS, tkinter should be available by default
+# On Windows, tkinter is included with Python
+
+# Experimental dependencies (Windows-specific, for DAQ control)
+# caio - CONTEC AIO library (not available via pip, must be installed separately)
+# See experiments/README.md for installation instructions
