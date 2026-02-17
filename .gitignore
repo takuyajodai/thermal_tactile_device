@@ -36,5 +36,5 @@ exp/
 .DS_Store
 Thumbs.db
 
-# Documentation (contains analysis results)
-docs/goodness_analysis.md
+# Documentation (personal memos)
+docs/
