@@ -11,17 +11,32 @@
 #================================================================
 
 import ctypes
-import ctypes.wintypes
 import sys
-import msvcrt
-import caio
+import platform
+
+# ================================================================
+# Platform guard
+# ================================================================
+# This experiment script depends on CONTEC AIO (WDM) driver via caio.dll
+# and Windows-specific I/O modules (msvcrt / winsound / windll).
+# On macOS/Linux, we exit with a clear message instead of crashing at import time.
+if sys.platform != "win32":
+    raise SystemExit(
+        "このスクリプトは Windows + CONTEC AIO(WDM) ドライバ（caio.dll）前提です。\n"
+        f"現在のOS: {platform.system()} ({sys.platform})\n"
+        "macOS上では実機I/Oができないため実行できません。"
+    )
+
+import ctypes.wintypes  # noqa: E402 (Windows-only)
+import msvcrt  # noqa: E402 (Windows-only)
+import caio  # noqa: E402 (requires caio.dll on Windows)
 import math
 import numpy as np
 import matplotlib.pyplot as plt
 import time
 import csv
-import winsound
-from ctypes import windll
+import winsound  # noqa: E402 (Windows-only)
+from ctypes import windll  # noqa: E402 (Windows-only)
 from pathlib import Path
 
 # Custom modules

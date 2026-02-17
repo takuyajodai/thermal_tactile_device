@@ -1,13 +1,9 @@
+import sys
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 from scipy import stats
-from tkinter import filedialog
 import pandas as pd
-
-sns.set()
-#sns.set_style('whitegrid')
-sns.set_palette('gist_yarg')
 
 from pathlib import Path
 
@@ -15,30 +11,35 @@ from pathlib import Path
 style_path = Path(__file__).parent.parent / "utils" / "dsheep_white.mplstyle"
 plt.style.use(str(style_path))
 
-# CSVファイルからデータを読み込む
-# WarmデータのCSVファイルを選択
-warm_csv_path = filedialog.askopenfilename(
-    title="Select warm data CSV file",
-    filetypes=(("CSV files", "*.csv"), ("All files", "*")),
-)
-if not warm_csv_path:
-    raise SystemExit("WarmデータのCSVファイルが選択されませんでした。")
+sns.set()
+#sns.set_style('whitegrid')
+sns.set_palette('gist_yarg')
 
-# ColdデータのCSVファイルを選択
-cold_csv_path = filedialog.askopenfilename(
-    title="Select cold data CSV file",
-    filetypes=(("CSV files", "*.csv"), ("All files", "*")),
-)
-if not cold_csv_path:
-    raise SystemExit("ColdデータのCSVファイルが選択されませんでした。")
-
-# Spatial coldデータのCSVファイルを選択
-spatial_cold_csv_path = filedialog.askopenfilename(
-    title="Select spatial cold data CSV file",
-    filetypes=(("CSV files", "*.csv"), ("All files", "*")),
-)
-if not spatial_cold_csv_path:
-    raise SystemExit("Spatial coldデータのCSVファイルが選択されませんでした。")
+# CSVパス: 引数で3つ指定されていればそれを使用、なければファイルダイアログ
+if len(sys.argv) >= 4:
+    warm_csv_path = sys.argv[1]
+    cold_csv_path = sys.argv[2]
+    spatial_cold_csv_path = sys.argv[3]
+else:
+    from tkinter import filedialog
+    warm_csv_path = filedialog.askopenfilename(
+        title="Select warm data CSV file",
+        filetypes=(("CSV files", "*.csv"), ("All files", "*")),
+    )
+    if not warm_csv_path:
+        raise SystemExit("WarmデータのCSVファイルが選択されませんでした。")
+    cold_csv_path = filedialog.askopenfilename(
+        title="Select cold data CSV file",
+        filetypes=(("CSV files", "*.csv"), ("All files", "*")),
+    )
+    if not cold_csv_path:
+        raise SystemExit("ColdデータのCSVファイルが選択されませんでした。")
+    spatial_cold_csv_path = filedialog.askopenfilename(
+        title="Select spatial cold data CSV file",
+        filetypes=(("CSV files", "*.csv"), ("All files", "*")),
+    )
+    if not spatial_cold_csv_path:
+        raise SystemExit("Spatial coldデータのCSVファイルが選択されませんでした。")
 
 # CSVファイルを読み込む（エンコーディングを自動検出）
 try:
@@ -55,6 +56,29 @@ try:
     df_spatial_cold = pd.read_csv(spatial_cold_csv_path, encoding="utf-8-sig")
 except UnicodeDecodeError:
     df_spatial_cold = pd.read_csv(spatial_cold_csv_path, encoding="cp932")
+
+# 列名の前後空白を除去（CSVによっては空白が含まれる場合がある）
+for df, name in [(df_warm, "warm"), (df_cold, "cold"), (df_spatial_cold, "spatial_cold")]:
+    df.columns = df.columns.str.strip()
+
+_REQUIRED = ["PSS", "Window_size", "Prob"]
+
+
+def _ensure_columns(df, path_label, path_value):
+    missing = [c for c in _REQUIRED if c not in df.columns]
+    if missing:
+        raise SystemExit(
+            f"{path_label} に必要な列がありません。\n"
+            f"必要な列: {_REQUIRED}\n"
+            f"実際の列: {list(df.columns)}\n"
+            f"ファイル: {path_value}\n"
+            "※ spatial cold には「サマリーCSV」（PSS, Window_size, Prob を含む）を指定してください。"
+        )
+
+
+_ensure_columns(df_warm, "Warm CSV", warm_csv_path)
+_ensure_columns(df_cold, "Cold CSV", cold_csv_path)
+_ensure_columns(df_spatial_cold, "Spatial cold CSV", spatial_cold_csv_path)
 
 # データを配列に変換（NaN値を除外）
 # CSVファイルには Subject, PSS, Window_size, Prob の列があると仮定

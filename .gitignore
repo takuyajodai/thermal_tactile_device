@@ -35,3 +35,6 @@ exp/
 # OS
 .DS_Store
 Thumbs.db
+
+# Documentation (contains analysis results)
+docs/goodness_analysis.md
